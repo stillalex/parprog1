@@ -38,25 +38,59 @@ object ParallelParenthesesBalancingRunner {
 
 object ParallelParenthesesBalancing {
 
-  /** Returns `true` iff the parentheses in the input `chars` are balanced.
+  /**
+   * Returns `true` iff the parentheses in the input `chars` are balanced.
    */
   def balance(chars: Array[Char]): Boolean = {
-    ???
+    def helper(chars: Array[Char], acc: Int): Int = {
+      if (chars.isEmpty) acc
+      else if (chars.head == '(') helper(chars.tail, acc + 1)
+      else if (chars.head == ')') {
+        if (acc > 0) helper(chars.tail, acc - 1)
+        else -1
+      } else helper(chars.tail, acc)
+    }
+    return helper(chars, 0) == 0;
   }
 
-  /** Returns `true` iff the parentheses in the input `chars` are balanced.
+  /**
+   * Returns `true` iff the parentheses in the input `chars` are balanced.
    */
   def parBalance(chars: Array[Char], threshold: Int): Boolean = {
 
-    def traverse(idx: Int, until: Int, arg1: Int, arg2: Int) /*: ???*/ = {
-      ???
+    def traverse(idx: Int, until: Int, a1: Int, a2: Int): (Int, Int) = {
+      var b = (a1, a2)
+      var i = idx
+      while (i < until) {
+        val c = chars(i)
+        if (c == '(') b = (b._1 + 1, b._2)
+
+        if (c == ')') {
+          if (b._1 > 0)
+            b = (b._1 - 1, b._2)
+          else
+            b = (b._1, b._2 + 1)
+        }
+        i = i + 1
+      }
+      b
     }
 
-    def reduce(from: Int, until: Int) /*: ???*/ = {
-      ???
+    def reduce(from: Int, until: Int): (Int, Int) = {
+      if (until - from <= threshold)
+        traverse(from, until, 0, 0)
+      else {
+        val mid = from + (until - from) / 2
+        val (l, r) = parallel(
+          reduce(from, mid),
+          reduce(mid, until))
+
+        val matched = scala.math.min(l._1, r._2)
+        (l._1 + r._1 - matched, l._2 + r._2 - matched)
+      }
     }
 
-    reduce(0, chars.length) == ???
+    reduce(0, chars.length) == (0, 0)
   }
 
   // For those who want more:

@@ -55,13 +55,27 @@ class ParallelCountChangeSuite extends FunSuite {
   }
 
   test("countChange should work for multi-coins") {
+    val mm = totalCoinsThreshold(4)
+    
     def check(money: Int, coins: List[Int], expected: Int) =
-      assert(countChange(money, coins) == expected,
+      assert(parCountChange(money, coins, mm) == expected,
         s"countChange($money, $coins) should be $expected")
 
     check(50, List(1, 2, 5, 10), 341)
     check(250, List(1, 2, 5, 10, 20, 50), 177863)
   }
 
+  test("money thres should work for multi-coins") {
+    val mm = moneyThreshold(2)
+    val r = mm.apply(2, List(4))
+    assert(!r,
+      s"money thresh should be true")
+  }
 
+  test("countChange test") {
+    // System.err.println("test")
+    val mm = moneyThreshold(16)
+    val pcp = parCountChange(16, List(1), mm)
+    // System.err.println(pcp)
+  }
 }
