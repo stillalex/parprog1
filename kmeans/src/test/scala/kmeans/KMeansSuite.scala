@@ -31,6 +31,7 @@ class KMeansSuite extends FunSuite {
     val mean = new Point(1, 1, 1)
     val means: GenSeq[Point] = IndexedSeq(mean)
     val expected = GenMap[Point, GenSeq[Point]]((mean, GenSeq()))
+
     checkClassify(points, means, expected)
   }
 
@@ -67,11 +68,28 @@ class KMeansSuite extends FunSuite {
   test("'classify with data parallelism should work for empty 'points' and empty 'means'") {
     val points: GenSeq[Point] = IndexedSeq()
     val means: GenSeq[Point] = IndexedSeq()
-    val expected = GenMap[Point,GenSeq[Point]]()
+    val expected = GenMap[Point, GenSeq[Point]]()
     checkParClassify(points, means, expected)
   }
 
+  test("h0") {
+
+    val p1 = new Point(0, 0, 1)
+    val p2 = new Point(0, 0, -1)
+    val p3 = new Point(0, 1, 0)
+    val p4 = new Point(0, 10, 0)
+    val points: GenSeq[Point] = IndexedSeq(p1, p2, p3, p4)
+
+    val mean0 = new Point(0, -1, 0)
+    val mean1 = new Point(0, 2, 0)
+    val means: GenSeq[Point] = IndexedSeq(mean0, mean1)
+
+    val e1 = new Point(0, 0, 0)
+    val e2 = new Point(0, 5.5, 0)
+    val expected = IndexedSeq[Point](e1, e2)
+
+    val gotit = kMeans(points, means, 12.25)
+    // assert(gotit == expected)
+  }
+
 }
-
-
-  
