@@ -59,7 +59,7 @@ import FloatOps._
     assert(quad.total == 1, s"${quad.total} should be 1")
   }
 
-  test("Empty.insert(b) should return a Leaf with only that body") {
+    test("Empty.insert(b) should return a Leaf with only that body") {
     val quad = Empty(51f, 46.3f, 5f)
     val b = new Body(3f, 54f, 46f, 0f, 0f)
     val inserted = quad.insert(b)
@@ -70,7 +70,7 @@ import FloatOps._
         assert(size == 5f, s"$size should be 5f")
         assert(bodies == Seq(b), s"$bodies should contain only the inserted body")
       case _ =>
-        fail("Empty.insert() should have returned a Leaf, was $inserted")
+        fail(s"Empty.insert() should have returned a Leaf, was $inserted")
     }
   }
 

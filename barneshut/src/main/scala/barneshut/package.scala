@@ -25,6 +25,12 @@ package object barneshut {
     override def toString = s"Boundaries($minX, $minY, $maxX, $maxY)"
   }
 
+  def isIn(q: Quad, b: Body): Boolean = {
+    val isx = b.x >= q.centerX - q.size / 2 && b.x <= q.centerX + q.size / 2
+    val isy = b.y >= q.centerY - q.size / 2 && b.y <= q.centerY + q.size / 2
+    isx && isy
+  }
+
   sealed abstract class Quad {
     def massX: Float
 
@@ -44,34 +50,109 @@ package object barneshut {
   }
 
   case class Empty(centerX: Float, centerY: Float, size: Float) extends Quad {
-    def massX: Float = ???
-    def massY: Float = ???
-    def mass: Float = ???
-    def total: Int = ???
-    def insert(b: Body): Quad = ???
+    def massX: Float = centerX
+    def massY: Float = centerY
+    def mass: Float = 0
+    def total: Int = 0
+    def insert(b: Body): Quad = Leaf(centerX, centerY, size, Seq(b))
   }
 
   case class Fork(
     nw: Quad, ne: Quad, sw: Quad, se: Quad
   ) extends Quad {
-    val centerX: Float = ???
-    val centerY: Float = ???
-    val size: Float = ???
-    val mass: Float = ???
-    val massX: Float = ???
-    val massY: Float = ???
-    val total: Int = ???
+    val centerX: Float = nw.centerX + nw.size / 2
+    val centerY: Float = nw.centerY + nw.size / 2
+    val size: Float = nw.size + ne.size
+    val mass: Float = nw.mass + ne.mass + sw.mass + se.mass
+    val massX: Float =
+      if (mass != 0) {
+        (nw.massX * nw.mass + ne.massX * ne.mass + sw.massX * sw.mass + se.massX * se.mass) / mass
+      } else {
+        centerX
+      }
+
+    val massY: Float =
+      if (mass != 0) {
+        (nw.massY * nw.mass + ne.massY * ne.mass + sw.massY * sw.mass + se.massY * se.mass) / mass
+      } else {
+        centerY
+      }
+    val total: Int = nw.total + ne.total + sw.total + se.total
 
     def insert(b: Body): Fork = {
-      ???
+      var closest = -1
+      var dist = Float.MaxValue
+
+      if (isIn(nw, b)) {
+        return Fork(nw.insert(b), ne, sw, se)
+      } else {
+        val d0 = distance(b.x, b.y, nw.centerX, nw.centerY)
+        if (d0 < dist) {
+          closest = 0
+          dist = d0
+        }
+      }
+      if (isIn(ne, b)) {
+        return Fork(nw, ne.insert(b), sw, se)
+      } else {
+        val d0 = distance(b.x, b.y, ne.centerX, ne.centerY)
+        if (d0 < dist) {
+          closest = 1
+          dist = d0
+        }
+      }
+      if (isIn(sw, b)) {
+        return Fork(nw.insert(b), ne, sw.insert(b), se)
+        val d0 = distance(b.x, b.y, sw.centerX, sw.centerY)
+        if (d0 < dist) {
+          closest = 2
+          dist = d0
+        }
+      }
+      if (isIn(se, b)) {
+        return Fork(nw.insert(b), ne, sw, se.insert(b))
+      } else {
+        val d0 = distance(b.x, b.y, se.centerX, se.centerY)
+        if (d0 < dist) {
+          closest = 3
+          dist = d0
+        }
+      }
+      //
+      closest match {
+        case 1 => Fork(nw, ne.insert(b), sw, se)
+        case 2 => Fork(nw, ne, sw.insert(b), se)
+        case 3 => Fork(nw, ne, sw, se.insert(b))
+        case _ => Fork(nw.insert(b), ne, sw, se)
+      }
     }
   }
 
   case class Leaf(centerX: Float, centerY: Float, size: Float, bodies: Seq[Body])
-  extends Quad {
-    val (mass, massX, massY) = (??? : Float, ??? : Float, ??? : Float)
-    val total: Int = ???
-    def insert(b: Body): Quad = ???
+      extends Quad {
+
+    val (mass, massXT, massYT, total) =
+      bodies.foldLeft((0f, 0f, 0f, 0))((acc, b) => (acc._1 + b.mass, acc._2 + b.x * b.mass, acc._3 + b.y * b.mass, acc._4 + 1))
+
+    val massX = if (mass != 0) { massXT / mass } else { centerX }
+    val massY = if (mass != 0) { massYT / mass } else { centerY }
+    // val total: Int = bodies.size
+
+    def insert(b: Body): Quad = {
+      if (size > minimumSize) {
+        val sz = size / 2
+        val n: Quad = Fork(
+          Empty(centerX - sz / 2, centerY - sz / 2, sz), // NW
+          Empty(centerX + sz / 2, centerY - sz / 2, sz), // NE
+          Empty(centerX - sz / 2, centerY + sz / 2, sz), // SW
+          Empty(centerX + sz / 2, centerY + sz / 2, sz)) // SE
+        val all = bodies.foldLeft(n)((acc, b) => acc.insert(b))
+        all.insert(b)
+      } else {
+        Leaf(centerX, centerY, size, b +: bodies)
+      }
+
+    }
   }
 
   def minimumSize = 0.00001f
@@ -123,9 +204,23 @@ package object barneshut {
           // no force
         case Leaf(_, _, _, bodies) =>
           // add force contribution of each body by calling addForce
+          bodies.foreach(b => addForce(b.mass, b.x, b.y))
+
         case Fork(nw, ne, sw, se) =>
           // see if node is far enough from the body,
           // or recursion is needed
+          {
+            val dist = distance(x, y, quad.massX, quad.massY);
+            if (quad.size / dist < theta) {
+              // merge
+              addForce(quad.mass, quad.massX, quad.massY)
+            } else {
+              traverse(nw)
+              traverse(ne)
+              traverse(sw)
+              traverse(se)
+            }
+          }
       }
 
       traverse(quad)
@@ -148,14 +243,39 @@ package object barneshut {
     for (i <- 0 until matrix.length) matrix(i) = new ConcBuffer
 
     def +=(b: Body): SectorMatrix = {
-      ???
+      var x = b.x
+      if (x > boundaries.maxX) {
+        x = boundaries.maxX
+      }
+      if (x < boundaries.minX) {
+        x = boundaries.minX
+      }
+
+      var y = b.y
+      if (y > boundaries.maxY) {
+        y = boundaries.maxY
+      }
+      if (y < boundaries.minY) {
+        y = boundaries.minY
+      }
+
+      val dx = distance(x, 0, boundaries.minX, 0)
+      val mx = (dx / sectorSize).toInt
+      val dy = distance(0, y, 0, boundaries.minY)
+      val my = (dy / sectorSize).toInt
+
+      val index = mx + my * sectorPrecision
+      matrix(index).+=(b)
       this
     }
 
     def apply(x: Int, y: Int) = matrix(y * sectorPrecision + x)
 
     def combine(that: SectorMatrix): SectorMatrix = {
-      ???
+      for (i <- 0 until matrix.length) {
+        that.matrix(i).foreach(b => matrix(i) += b)
+      }
+      this
     }
 
     def toQuad(parallelism: Int): Quad = {
